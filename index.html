@@ -1,19 +1,19 @@
 <!DOCTYPE html>
 <html lang="nl">
 <head>
-<meta charset="utf-8">
-<title>Interactieve Kaart Gemeente Ede</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
-<style>
-body { font-family: Arial, sans-serif; padding:10px; }
-#map { height:80vh; margin-top:10px; }
-input, select, button { margin:4px; }
-</style>
+  <meta charset="utf-8">
+  <title>Gedeelde Kaart met Opslaan</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+  <style>
+    body { font-family: Arial, sans-serif; padding:10px; }
+    #map { height:80vh; margin-top:10px; }
+    input, select, button { margin:4px; }
+  </style>
 </head>
 <body>
 
-<h1>Interactieve Kaart Gemeente Ede</h1>
+<h1>Kaart van Gemeente Ede — Gedeeld</h1>
 
 <input type="text" id="streetName" placeholder="Straatnaam (bijv. Mendellaan, Ede)">
 <input type="text" id="popupText" placeholder="Popup‑tekst">
@@ -36,29 +36,26 @@ input, select, button { margin:4px; }
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin></script>
 <script>
 const API_URL = "https://api.jsonbin.io/v3/b/68f4f54843b1c97be97113ae";
-const API_KEY = "$2a$10$.wg1M0zJ8TcaaMsUOev/yeNAzEPXW1h8AtiFroJ.TsRd/G9Kc7JCu"; // Master Key
+const API_KEY = "$2a$10$.wg1M0zJ8TcaaMsUOev/yeNAzEPXW1h8AtiFroJ.TsRd/G9Kc7JCu";
 
 const map = L.map('map').setView([52.046, 5.671], 13);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '&copy; OpenStreetMap'
 }).addTo(map);
 
-let circles = []; // lokale array van cirkels
+let circles = [];  // lokale lijst van cirkels
 
 async function loadCircles() {
-  try {
-    const res = await fetch(API_URL + "/latest", { headers: { "X-Master-Key": API_KEY } });
-    const json = await res.json();
-    circles = json.record || [];
-    drawCircles();
-  } catch (err) {
-    console.error("Kan JSONBin data niet laden:", err);
-  }
+  const res = await fetch(API_URL + "/latest", { headers: { "X-Master-Key": API_KEY } });
+  const json = await res.json();
+  circles = json.record || [];
+  drawCircles();
 }
 
 function drawCircles() {
+  // Eerst alle bestaande lagen verwijderen
   map.eachLayer(layer => {
-    if (layer instanceof L.Circle) map.removeLayer(layer);
+    if (layer instanceof L.Circle || layer instanceof L.CircleMarker) map.removeLayer(layer);
   });
 
   circles.forEach((c, index) => {
@@ -71,36 +68,11 @@ function drawCircles() {
 
     circle.bindPopup(`${c.popupText} <br> Radius: ${c.radius} m`);
 
+    // Rechtsklik = cirkel verwijderen
     circle.on('contextmenu', () => {
-      const action = prompt("Kies een actie:\n1. Tekst aanpassen\n2. Kleur aanpassen\n3. Radius aanpassen\n4. Verwijderen\nTyp 1,2,3 of 4:");
-      if (!action) return;
-
-      switch(action) {
-        case "1":
-          const newText = prompt("Nieuwe popup tekst:", c.popupText);
-          if (newText) { c.popupText = newText; circle.bindPopup(`${c.popupText} <br> Radius: ${c.radius} m`); }
-          break;
-        case "2":
-          const newColor = prompt("Kies kleur: green/orange/red/blue", c.color);
-          if (["green","orange","red","blue"].includes(newColor)) {
-            c.color = newColor;
-            c.fillColor = newColor==="green"?"#00f033":newColor==="orange"?"#FFA500":newColor==="red"?"#FF0000":"#0000FF";
-            circle.setStyle({ color: c.color, fillColor: c.fillColor });
-          }
-          break;
-        case "3":
-          const newRadius = parseInt(prompt("Nieuwe radius (250,300,400):", c.radius));
-          if ([250,300,400].includes(newRadius)) {
-            c.radius = newRadius;
-            circle.setRadius(c.radius);
-          }
-          break;
-        case "4":
-          if (confirm("Weet je zeker dat je deze cirkel wilt verwijderen?")) {
-            circles.splice(index,1);
-            drawCircles();
-          }
-          break;
+      if (confirm("Wil je deze cirkel verwijderen?")) {
+        circles.splice(index, 1);
+        drawCircles();  // herteken de kaart
       }
     });
   });
@@ -108,21 +80,15 @@ function drawCircles() {
 
 // Functie om alles op JSONBin op te slaan
 async function saveCircles() {
-  try {
-    const res = await fetch(API_URL, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Master-Key": API_KEY
-      },
-      body: JSON.stringify(circles)
-    });
-    if (res.ok) alert("Cirkeldata succesvol opgeslagen!");
-    else alert("Fout bij opslaan!");
-  } catch (err) {
-    console.error("Opslaan mislukt:", err);
-    alert("Opslaan mislukt!");
-  }
+  await fetch(API_URL, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Master-Key": API_KEY
+    },
+    body: JSON.stringify(circles)
+  });
+  alert("Cirkeldata succesvol opgeslagen!");
 }
 
 // Toevoegen van een nieuwe cirkel
@@ -131,32 +97,26 @@ document.getElementById("add").onclick = async () => {
   const popupText = document.getElementById("popupText").value;
   const color = document.getElementById("circleColor").value;
   const radius = parseInt(document.getElementById("circleRadius").value);
-
   if (!street) return alert("Voer straatnaam in");
 
-  try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(street)}`);
-    const data = await res.json();
-    if (!data.length) return alert("Straat niet gevonden");
+  const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(street)}`);
+  const data = await res.json();
+  if (!data.length) return alert("Straat niet gevonden");
 
-    const lat = parseFloat(data[0].lat);
-    const lon = parseFloat(data[0].lon);
-    const fillColor = color === "green" ? "#00f033" :
-                      color === "orange" ? "#FFA500" :
-                      color === "red" ? "#FF0000" :
-                      "#0000FF";
+  const lat = parseFloat(data[0].lat);
+  const lon = parseFloat(data[0].lon);
+  const fillColor = color === "green" ? "#00f033" :
+                    color === "orange" ? "#FFA500" :
+                    color === "red" ? "#FF0000" :
+                    "#0000FF";
 
-    const newC = { lat, lon, popupText: popupText || street, color, fillColor, radius };
-    circles.push(newC);
-    drawCircles();
-    map.setView([lat, lon], 14);
-  } catch (err) {
-    console.error("Fout bij ophalen coördinaten:", err);
-    alert("Kan straat niet ophalen");
-  }
+  const newC = { lat, lon, popupText: popupText || street, color, fillColor, radius };
+  circles.push(newC);
+  drawCircles();
+  map.setView([lat, lon], 14);
 };
 
-// Opslaan knop
+// Opslaan-knop
 document.getElementById("save").onclick = saveCircles;
 
 loadCircles();
